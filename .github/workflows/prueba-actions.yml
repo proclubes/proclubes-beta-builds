@@ -1,0 +1,25 @@
+name: Comprobar Actions publico
+run-name: Prueba gratuita de Actions
+on:
+  workflow_dispatch:
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Comprobar entorno
+        run: |
+          echo "PROCLUBES Beta Builds: GitHub Actions funciona"
+          echo "Repositorio publico, sin acceder a codigo privado"
+      - name: Generar ZIP de prueba
+        run: |
+          mkdir -p prueba
+          printf 'Prueba de PROCLUBES Beta Builds\n' > prueba/LEEME.txt
+          cd prueba && zip -q ../proclubes-prueba.zip LEEME.txt
+      - name: Publicar ZIP de prueba
+        uses: actions/upload-artifact@v4
+        with:
+          name: proclubes-prueba
+          path: proclubes-prueba.zip
+          retention-days: 7
