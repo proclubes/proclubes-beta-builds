@@ -1,0 +1,55 @@
+name: Generar PROCLUBES Beta ZIP
+run-name: Preparar ZIP Beta desde repositorio privado
+on:
+  workflow_dispatch:
+jobs:
+  paquete-beta:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Comprobar acceso privado configurado
+        env:
+          TOKEN: ${{ secrets.PROCLUBES_SOURCE_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Falta configurar el secreto PROCLUBES_SOURCE_TOKEN"
+            exit 1
+          fi
+      - name: Obtener codigo desde repositorio privado
+        uses: actions/checkout@v4
+        with:
+          repository: proclubes/proclubes
+          ref: fase-4-importacion-ea
+          token: ${{ secrets.PROCLUBES_SOURCE_TOKEN }}
+          persist-credentials: false
+          path: source
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar y generar sitio beta
+        working-directory: source
+        env:
+          PROCLUBES_BETA_URL: https://qpbfjsyueyivozhewwyy.supabase.co
+          PROCLUBES_BETA_ANON_KEY: sb_publishable_ohUvZgvyda707YN8_CJwxg_fYRDdZdg
+        run: |
+          find public/js scripts -name '*.mjs' -print0 | xargs -0 -n 1 node --check
+          node tests/beta-interface-contracts.mjs
+          node scripts/build-beta-site.mjs
+          test -f dist-beta/index.html
+          test -f dist-beta/config.js
+          grep -q 'qpbfjsyueyivozhewwyy.supabase.co' dist-beta/config.js
+          ! grep -R -q 'hkukzieujurqmifnyyzk' dist-beta
+          git diff --exit-code -- public/
+      - name: Crear ZIP de Cloudflare Pages
+        working-directory: source/dist-beta
+        run: |
+          zip -qr ../../proclubes-beta-pages.zip .
+          unzip -l ../../proclubes-beta-pages.zip | grep -q 'index.html'
+      - name: Publicar ZIP para descarga
+        uses: actions/upload-artifact@v4
+        with:
+          name: proclubes-beta-pages
+          path: proclubes-beta-pages.zip
+          retention-days: 7
